@@ -209,12 +209,7 @@
     "public.role_enum": {
       "name": "role_enum",
       "schema": "public",
-      "values": [
-        "SuppaDuppaAdmin",
-        "User",
-        "Admin",
-        "Editor"
-      ]
+      "values": ["SuppaDuppaAdmin", "User", "Admin", "Editor"]
     }
   },
   "schemas": {},
