@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsNotEmpty,
@@ -20,21 +21,25 @@ export class CreateProductDto {
   @IsOptional()
   description?: string;
 
+  @Type(() => Number)
   @IsNumber()
   @IsNotEmpty()
   stock_quantity: number;
 
+  @Type(() => Number)
   @IsNumber()
   @IsNotEmpty()
   cost_price: number;
 
+  @Type(() => Number)
   @IsNumber()
   @IsNotEmpty()
   regular_price: number;
 
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
-  sale_price: number;
+  sale_price?: number;
 
   @ParseBoolean()
   @IsBoolean()
