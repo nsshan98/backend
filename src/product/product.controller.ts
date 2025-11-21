@@ -1,6 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
   Post,
   UploadedFile,
   UseInterceptors,
@@ -13,6 +18,7 @@ import { users } from 'src/db/schema';
 import { CreateProductDto } from './dto/createProduct.dto';
 import { ImageUploadValidationPipe } from 'src/cloudinary/pipes/image-validation.pipe';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { UpdateProductDto } from './dto/updateProduct.dto';
 
 @Controller('products')
 export class ProductController {
@@ -28,5 +34,40 @@ export class ProductController {
     @AuthenticatedUser() user: typeof users.$inferSelect,
   ) {
     return this.productService.createProduct(dto, user);
+  }
+
+  @Roles(Role.SUPPA_DUPPA_ADMIN)
+  @Patch('update/:id')
+  @UseInterceptors(FileInterceptor('image'))
+  async updateProduct(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateProductDto,
+    @UploadedFile(new ImageUploadValidationPipe({ required: false }))
+    image: Express.Multer.File | null,
+    @AuthenticatedUser()
+    user: typeof users.$inferSelect,
+  ) {
+    const result = await this.productService.updateProduct(id, dto, user);
+
+    return {
+      message: 'Product updated successfully',
+      product: result.product,
+    };
+  }
+
+  @Roles(Role.SUPPA_DUPPA_ADMIN)
+  @Delete('delete/:id')
+  async deleteProduct(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @AuthenticatedUser()
+    user: typeof users.$inferSelect,
+  ) {
+    return this.productService.deleteProduct(id, user);
+  }
+
+  @Roles(Role.SUPPA_DUPPA_ADMIN)
+  @Get('all-products')
+  async getAllProducts() {
+    return this.productService.getAllProducts();
   }
 }
