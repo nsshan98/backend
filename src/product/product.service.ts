@@ -18,7 +18,52 @@ export class ProductService {
     const product = await this.dbService.db.query.products.findFirst({
       where: eq(products.id, id),
     });
-    return product;
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+    return {
+      message: 'Product fetched successfully',
+      product: {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        description: product.description,
+        image_url: product.image_url,
+        stock_quantity: product.stock_quantity,
+        cost_price: product.cost_price,
+        regular_price: product.regular_price,
+        sale_price: product.sale_price,
+        is_published: product.is_published,
+        created_at: product.created_at,
+        updated_at: product.updated_at,
+      },
+    };
+  }
+
+  async findOneWithProductSlug(slug: string) {
+    const product = await this.dbService.db.query.products.findFirst({
+      where: eq(products.slug, slug),
+    });
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+    return {
+      message: 'Product fetched successfully',
+      product: {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        description: product.description,
+        image_url: product.image_url,
+        stock_quantity: product.stock_quantity,
+        cost_price: product.cost_price,
+        regular_price: product.regular_price,
+        sale_price: product.sale_price,
+        is_published: product.is_published,
+        created_at: product.created_at,
+        updated_at: product.updated_at,
+      },
+    };
   }
 
   async createProduct(dto: CreateProductDto, user: typeof users.$inferSelect) {

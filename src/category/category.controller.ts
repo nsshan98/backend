@@ -10,76 +10,76 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { ProductService } from './product.service';
 import { Roles } from 'src/auth/decorators/roles.decorators';
 import { Role } from 'src/auth/enum/role.enum';
 import { AuthenticatedUser } from 'src/auth/decorators/authenticated-user.decorators';
 import { users } from 'src/db/schema';
-import { CreateProductDto } from './dto/createProduct.dto';
 import { ImageUploadValidationPipe } from 'src/cloudinary/pipes/image-validation.pipe';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { UpdateProductDto } from './dto/updateProduct.dto';
+import { CategoryService } from './category.service';
+import { CreateCategoryDto } from './dto/createCategory.dto';
+import { UpdateCategoryDto } from './dto/updateCategory.dto';
 
-@Controller('products')
-export class ProductController {
-  constructor(private productService: ProductService) {}
+@Controller('category')
+export class CategoryController {
+  constructor(private categoryService: CategoryService) {}
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)
   @Post('create')
   @UseInterceptors(FileInterceptor('image'))
-  createProduct(
-    @Body() dto: CreateProductDto,
+  createCategory(
+    @Body() dto: CreateCategoryDto,
     @UploadedFile(new ImageUploadValidationPipe({ required: false }))
     image: Express.Multer.File | null,
     @AuthenticatedUser() user: typeof users.$inferSelect,
   ) {
-    return this.productService.createProduct(dto, user);
+    return this.categoryService.createCategory(dto, user);
   }
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)
   @Patch('update/:id')
   @UseInterceptors(FileInterceptor('image'))
-  async updateProduct(
+  async updateCategory(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() dto: UpdateProductDto,
+    @Body() dto: UpdateCategoryDto,
     @UploadedFile(new ImageUploadValidationPipe({ required: false }))
     image: Express.Multer.File | null,
     @AuthenticatedUser()
     user: typeof users.$inferSelect,
   ) {
-    const result = await this.productService.updateProduct(id, dto, user);
+    const result = await this.categoryService.updateCategory(id, dto, user);
 
     return {
-      message: 'Product updated successfully',
-      product: result.product,
+      message: 'Category updated successfully',
+      category: result.category,
     };
   }
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)
   @Delete('delete/:id')
-  async deleteProduct(
+  async deleteCategory(
     @Param('id', new ParseUUIDPipe()) id: string,
     @AuthenticatedUser()
     user: typeof users.$inferSelect,
   ) {
-    return this.productService.deleteProduct(id, user);
+    return this.categoryService.deleteCategory(id, user);
   }
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)
-  @Get('all-products')
-  async getAllProducts() {
-    return this.productService.getAllProducts();
+  @Get('all-categories')
+  async getAllCategories() {
+    return this.categoryService.getAllCategories();
   }
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)
   @Get('by-id/:id')
-  async findOneWithProductId(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.productService.findOneWithProductId(id);
+  async findOneWithCategoryId(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.categoryService.findOneWithCategoryId(id);
   }
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)
   @Get('by-slug/:slug')
-  async findOneWithProductSlug(@Param('slug') slug: string) {
-    return this.productService.findOneWithProductSlug(slug);
+  async findOneWithCategorySlug(@Param('slug') slug: string) {
+    return this.categoryService.findOneWithCategorySlug(slug);
   }
 }
