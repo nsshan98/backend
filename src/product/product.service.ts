@@ -6,9 +6,10 @@ import {
 } from '@nestjs/common';
 import { desc, eq } from 'drizzle-orm';
 import { DrizzleService } from 'src/db/db.service';
-import { products, users } from 'src/db/schema';
+import { categories, products, users } from 'src/db/schema';
 import { CreateProductDto } from './dto/createProduct.dto';
 import { UpdateProductDto } from './dto/updateProduct.dto';
+import { productCategories } from 'src/db/schema/productCategories';
 
 @Injectable()
 export class ProductService {
@@ -21,6 +22,15 @@ export class ProductService {
     if (!product) {
       throw new NotFoundException('Product not found');
     }
+
+    const categoryWithProduct = await this.dbService.db
+      .select({
+        cat: categories,
+      })
+      .from(productCategories)
+      .leftJoin(categories, eq(categories.id, productCategories.category_id))
+      .where(eq(productCategories.product_id, id));
+
     return {
       message: 'Product fetched successfully',
       product: {
@@ -34,6 +44,12 @@ export class ProductService {
         regular_price: product.regular_price,
         sale_price: product.sale_price,
         is_published: product.is_published,
+        categories: categoryWithProduct.map((category) => {
+          return {
+            id: category.cat?.id,
+            name: category.cat?.name,
+          };
+        }),
         created_at: product.created_at,
         updated_at: product.updated_at,
       },
@@ -47,6 +63,14 @@ export class ProductService {
     if (!product) {
       throw new NotFoundException('Product not found');
     }
+    const categoryWithProduct = await this.dbService.db
+      .select({
+        cat: categories,
+      })
+      .from(productCategories)
+      .leftJoin(categories, eq(categories.id, productCategories.category_id))
+      .where(eq(productCategories.product_id, product.id));
+
     return {
       message: 'Product fetched successfully',
       product: {
@@ -60,6 +84,12 @@ export class ProductService {
         regular_price: product.regular_price,
         sale_price: product.sale_price,
         is_published: product.is_published,
+        categories: categoryWithProduct.map((category) => {
+          return {
+            id: category.cat?.id,
+            name: category.cat?.name,
+          };
+        }),
         created_at: product.created_at,
         updated_at: product.updated_at,
       },
@@ -79,6 +109,15 @@ export class ProductService {
       .insert(products)
       .values({ ...dto, user_id: user.id })
       .returning();
+
+    if (dto.category_ids?.length) {
+      await this.dbService.db.insert(productCategories).values(
+        dto.category_ids.map((categoryId) => ({
+          product_id: product.id,
+          category_id: categoryId,
+        })),
+      );
+    }
 
     return {
       message: 'Product created successfully',
