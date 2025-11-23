@@ -47,12 +47,7 @@ export class ProductController {
     @AuthenticatedUser()
     user: typeof users.$inferSelect,
   ) {
-    const result = await this.productService.updateProduct(id, dto, user);
-
-    return {
-      message: 'Product updated successfully',
-      product: result.product,
-    };
+    return await this.productService.updateProduct(id, dto, user);
   }
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)

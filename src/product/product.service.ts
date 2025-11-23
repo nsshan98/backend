@@ -119,37 +119,118 @@ export class ProductService {
       );
     }
 
+    const category = await this.dbService.db
+      .select({
+        id: categories.id,
+        name: categories.name,
+      })
+      .from(productCategories)
+      .innerJoin(categories, eq(productCategories.category_id, categories.id))
+      .where(eq(productCategories.product_id, product.id));
+
     return {
       message: 'Product created successfully',
-      product,
+      product: {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        description: product.description,
+        image_url: product.image_url,
+        stock_quantity: product.stock_quantity,
+        cost_price: product.cost_price,
+        regular_price: product.regular_price,
+        sale_price: product.sale_price,
+        is_published: product.is_published,
+        created_at: product.created_at,
+        updated_at: product.updated_at,
+        category,
+      },
     };
   }
 
   async updateProduct(
     id: string,
     dto: UpdateProductDto,
-    // file: Express.Multer.File,
     user: typeof users.$inferSelect,
   ) {
-    const [product] = await this.dbService.db
-      .update(products)
-      .set(dto)
-      .where(eq(products.id, id))
-      .returning();
+    const existingProduct = await this.dbService.db.query.products.findFirst({
+      where: eq(products.id, id),
+    });
 
-    if (!product) {
+    if (!existingProduct) {
       throw new NotFoundException('Product not found');
     }
 
-    if (product.user_id !== user.id) {
+    if (existingProduct.user_id !== user.id) {
       throw new ForbiddenException(
         'You are not authorized to update this product',
       );
     }
 
+    const { category_ids, ...updateData } = dto;
+
+    if (updateData.slug && updateData.slug !== existingProduct.slug) {
+      const slugExist = await this.dbService.db.query.products.findFirst({
+        where: eq(products.slug, updateData.slug),
+      });
+
+      if (slugExist) {
+        throw new ConflictException('Product with this slug already exists');
+      }
+    }
+
+    let product = existingProduct;
+    const hasProductUpdates = Object.keys(updateData).length > 0;
+
+    if (hasProductUpdates) {
+      [product] = await this.dbService.db
+        .update(products)
+        .set(updateData)
+        .where(eq(products.id, id))
+        .returning();
+    }
+
+    if (category_ids !== undefined) {
+      await this.dbService.db
+        .delete(productCategories)
+        .where(eq(productCategories.product_id, id));
+
+      if (category_ids.length > 0) {
+        await this.dbService.db.insert(productCategories).values(
+          category_ids.map((categoryId) => ({
+            product_id: product.id,
+            category_id: categoryId,
+          })),
+        );
+      }
+    }
+
+    const category = await this.dbService.db
+      .select({
+        id: categories.id,
+        name: categories.name,
+      })
+      .from(productCategories)
+      .innerJoin(categories, eq(productCategories.category_id, categories.id))
+      .where(eq(productCategories.product_id, id));
+
     return {
       message: 'Product updated successfully',
-      product,
+      product: {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        description: product.description,
+        image_url: product.image_url,
+        stock_quantity: product.stock_quantity,
+        cost_price: product.cost_price,
+        regular_price: product.regular_price,
+        sale_price: product.sale_price,
+        is_published: product.is_published,
+        created_at: product.created_at,
+        updated_at: product.updated_at,
+        category,
+      },
     };
   }
 
