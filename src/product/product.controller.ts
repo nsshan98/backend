@@ -72,7 +72,7 @@ export class ProductController {
     return this.productService.findOneWithProductId(id);
   }
 
-  @Roles(Role.SUPPA_DUPPA_ADMIN)
+  @Roles(Role.SUPPA_DUPPA_ADMIN, Role.USER)
   @Get('by-slug/:slug')
   async findOneWithProductSlug(@Param('slug') slug: string) {
     return this.productService.findOneWithProductSlug(slug);
