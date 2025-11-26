@@ -29,6 +29,9 @@ export class CreateOrderDto {
   @Type(() => OrderItemDto)
   items: OrderItemDto[];
 
+  @IsString()
+  idempotency_key: string;
+
   @ValidateNested()
   @Type(() => CreateAddressDto)
   shipping_address: CreateAddressDto;
