@@ -1,5 +1,5 @@
 import {
-  integer,
+  numeric,
   pgTable,
   timestamp,
   uuid,
@@ -20,11 +20,17 @@ export const orders = pgTable('orders', {
   shipping_district: varchar('shipping_district'),
   shipping_instructions: varchar('shipping_instructions'),
 
-  sub_total: integer('sub_total'),
-  shipping_cost: integer('shipping_cost').notNull().default(0),
-  tax_total: integer('tax_total').notNull().default(0),
-  discount_total: integer('discount_total').notNull().default(0),
-  total: integer('total').notNull(),
+  sub_total: numeric('sub_total', { precision: 10, scale: 2 }),
+  shipping_cost: numeric('shipping_cost', { precision: 10, scale: 2 })
+    .notNull()
+    .default('0'),
+  tax_total: numeric('tax_total', { precision: 10, scale: 2 })
+    .notNull()
+    .default('0'),
+  discount_total: numeric('discount_total', { precision: 10, scale: 2 })
+    .notNull()
+    .default('0'),
+  total: numeric('total', { precision: 10, scale: 2 }).notNull(),
 
   created_at: timestamp('created_at').defaultNow(),
   updated_at: timestamp('updated_at').defaultNow(),
