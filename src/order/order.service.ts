@@ -11,6 +11,14 @@ import { inArray, sql } from 'drizzle-orm';
 import { orders } from 'src/db/schema/order';
 import Decimal from 'decimal.js';
 
+interface PreparedOrderItem {
+  product: typeof products.$inferSelect;
+  quantity: number;
+  product_name_snapshot: string;
+  unit_price_snapshot: number;
+  subTotal: string;
+}
+
 @Injectable()
 export class OrderService {
   constructor(private readonly dbService: DrizzleService) {}
@@ -46,7 +54,7 @@ export class OrderService {
       const prodMap = new Map(productRows.map((p) => [String(p.id), p]));
 
       let subTotal = 0;
-      const itemsToInsert: Array<any> = [];
+      const itemsToInsert: PreparedOrderItem[] = [];
 
       for (const itm of dto.items) {
         const p = prodMap.get(itm.product_id);
@@ -103,27 +111,31 @@ export class OrderService {
         })
         .returning();
 
-      for (const itms of itemsToInsert) {
-        await tx.insert(orderItems).values({
+      // Batch insert all order items at once
+      await tx.insert(orderItems).values(
+        itemsToInsert.map((itms) => ({
           order_id: createdOrder.id,
           product_id: itms.product.id,
-
           product_name: itms.product_name_snapshot,
-          unit_price: itms.unit_price_snapshot,
-          quantity: itms.quantity,
+          unit_price: itms.unit_price_snapshot.toString(),
+          quantity: itms.quantity.toString(),
           total_price: itms.subTotal,
+          cost_price: itms.product.cost_price.toString(),
+          discounted_price: itms.product.sale_price?.toString() ?? null,
+          product_image: itms.product.image_url?.[0] ?? null,
+        })),
+      );
 
-          cost_price: itms.product.cost_price, // if your schema requires it
-          discounted_price: itms.product.discounted_price ?? null,
-          product_image: itms.product.images?.[0] ?? null,
-        });
-        const res = await tx
+      // Update stock quantities for each product
+      for (const itms of itemsToInsert) {
+        await tx
           .update(products)
           .set({ stock_quantity: sql`stock_quantity - ${itms.quantity}` })
           .where(
             sql`id = ${itms.product.id} AND stock_quantity >= ${itms.quantity}`,
           );
       }
+
       if (dto.idempotency_key) {
         await tx.insert(idempotency_keys).values({
           key: dto.idempotency_key,
@@ -131,9 +143,17 @@ export class OrderService {
           order_id: createdOrder.id,
         });
       }
+
       return {
         id: createdOrder.id,
         status: createdOrder.status,
+        items: itemsToInsert.map((item) => ({
+          product_id: item.product.id,
+          product_name: item.product_name_snapshot,
+          quantity: item.quantity,
+          unit_price: item.unit_price_snapshot,
+          total_price: item.subTotal,
+        })),
       };
     });
   }
