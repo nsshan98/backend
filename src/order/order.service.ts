@@ -10,6 +10,7 @@ import { idempotency_keys } from 'src/db/schema/idempotencyKeys';
 import { inArray, sql } from 'drizzle-orm';
 import { orders } from 'src/db/schema/order';
 import Decimal from 'decimal.js';
+import { user_addresses } from 'src/db/schema/userAddress';
 
 interface PreparedOrderItem {
   product: typeof products.$inferSelect;
@@ -62,7 +63,7 @@ export class OrderService {
           throw new NotFoundException('Product not found');
         }
         if (p.stock_quantity < itm.quantity) {
-          throw new BadRequestException('Product is out of stock');
+          throw new BadRequestException('Insufficient stock');
         }
         const unitPrice = new Decimal(p.regular_price.toString());
         const qty = new Decimal(itm.quantity);
@@ -78,9 +79,9 @@ export class OrderService {
         });
       }
 
-      const shippingCost = new Decimal(0);
-      const taxTotal = new Decimal(0);
-      const discountTotal = new Decimal(0);
+      const shippingCost = new Decimal(dto.shipping_cost);
+      const taxTotal = new Decimal(dto.tax_total);
+      const discountTotal = new Decimal(dto.discount_total);
       const total =
         subTotal +
         shippingCost.toNumber() +
@@ -90,15 +91,15 @@ export class OrderService {
       const [createdOrder] = await tx
         .insert(orders)
         .values({
-          user_id: user.id,
-
-          shipping_address: dto.shipping_address.shipping_address,
-          shipping_phone_number: dto.shipping_address.shipping_phone_number,
-          shipping_email: dto.shipping_address.shipping_email,
-          shipping_line1: dto.shipping_address.shipping_line1,
-          shipping_city: dto.shipping_address.shipping_city,
-          shipping_district: dto.shipping_address.shipping_district,
-          shipping_instructions: dto.shipping_address.shipping_instructions,
+          label: dto.shipping_address.label ?? 'Home',
+          address: dto.shipping_address.address,
+          phone: dto.shipping_address.phone,
+          line1: dto.shipping_address.line1 ?? '',
+          line2: dto.shipping_address.line2 ?? '',
+          district: dto.shipping_address.district,
+          upazila: dto.shipping_address.upazila ?? '',
+          area: dto.shipping_address.area ?? '',
+          post_code: dto.shipping_address.post_code,
 
           sub_total: subTotal.toFixed(2),
           shipping_cost: shippingCost.toFixed(2),
@@ -108,6 +109,10 @@ export class OrderService {
 
           status: 'pending',
           payment_status: 'unpaid',
+
+          shipping_instructions: dto.shipping_instructions ?? '',
+
+          user_id: user.id,
         })
         .returning();
 
@@ -134,6 +139,25 @@ export class OrderService {
           .where(
             sql`id = ${itms.product.id} AND stock_quantity >= ${itms.quantity}`,
           );
+      }
+
+      if (dto.shipping_address && dto.should_save_address) {
+        await tx.insert(user_addresses).values({
+          user_id: user.id,
+          label: dto.shipping_address.label,
+          address: dto.shipping_address.address,
+          phone: dto.shipping_address.phone,
+          line1: dto.shipping_address.line1,
+          line2: dto.shipping_address.line2,
+          district: dto.shipping_address.district,
+          upazila: dto.shipping_address.upazila,
+          area: dto.shipping_address.area,
+          post_code: dto.shipping_address.post_code,
+          country: dto.shipping_address.country,
+          latitude: dto.shipping_address.latitude,
+          longitude: dto.shipping_address.longitude,
+          is_default: true,
+        });
       }
 
       if (dto.idempotency_key) {

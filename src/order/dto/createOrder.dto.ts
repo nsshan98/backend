@@ -1,7 +1,9 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
+  IsBoolean,
   IsNumber,
+  IsOptional,
   IsString,
   IsUUID,
   ValidateNested,
@@ -11,12 +13,6 @@ import { CreateAddressDto } from 'src/address/dto/createAddress.dto';
 export class OrderItemDto {
   @IsUUID()
   product_id: string;
-
-  @IsString()
-  product_name: string;
-
-  @IsString()
-  product_image: string;
 
   @Type(() => Number)
   @IsNumber()
@@ -48,7 +44,11 @@ export class CreateOrderDto {
   @IsNumber()
   discount_total: number;
 
-  @Type(() => Number)
-  @IsNumber()
-  total: number;
+  @IsBoolean()
+  @IsOptional()
+  should_save_address?: boolean;
+
+  @IsString()
+  @IsOptional()
+  shipping_instructions?: string;
 }

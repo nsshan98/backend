@@ -36,6 +36,20 @@
       "when": 1764326437158,
       "tag": "0004_warm_electro",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1764348425446,
+      "tag": "0005_black_xorn",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1764348782370,
+      "tag": "0006_lethal_trish_tilby",
+      "breakpoints": true
     }
   ]
 }

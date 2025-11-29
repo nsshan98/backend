@@ -1,31 +1,55 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateAddressDto {
   @IsString()
+  @IsOptional()
+  label?: string;
+
+  @IsString()
   @IsNotEmpty()
-  shipping_address: string;
+  address: string;
 
   @IsString()
   @IsNotEmpty()
-  shipping_phone_number: string;
+  phone: string;
 
   @IsString()
   @IsOptional()
-  shipping_email?: string;
+  line1?: string;
 
   @IsString()
   @IsOptional()
-  shipping_line1?: string;
+  line2?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  district: string;
 
   @IsString()
   @IsOptional()
-  shipping_city?: string;
+  upazila?: string;
 
   @IsString()
   @IsOptional()
-  shipping_district?: string;
+  area?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  post_code: string;
+
+  @IsString()
+  @IsNotEmpty()
+  country?: string;
 
   @IsString()
   @IsOptional()
-  shipping_instructions?: string;
+  latitude?: string;
+
+  @IsString()
+  @IsOptional()
+  longitude?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  is_default?: boolean;
 }
