@@ -23,6 +23,9 @@ export class CreateProductDto {
   @IsOptional()
   description?: string;
 
+  @IsOptional()
+  image?: string;
+
   @Type(() => Number)
   @IsNumber()
   @IsNotEmpty()

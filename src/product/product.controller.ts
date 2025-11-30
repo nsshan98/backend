@@ -29,11 +29,12 @@ export class ProductController {
   @UseInterceptors(FileInterceptor('image'))
   createProduct(
     @Body() dto: CreateProductDto,
-    @UploadedFile(new ImageUploadValidationPipe({ required: false }))
-    image: Express.Multer.File | null,
+    // @UploadedFile(new ImageUploadValidationPipe({ required: false }))
+    @UploadedFile() file: Express.Multer.File,
+    // image: Express.Multer.File | null,
     @AuthenticatedUser() user: typeof users.$inferSelect,
   ) {
-    return this.productService.createProduct(dto, user);
+    return this.productService.createProduct(dto, file, user);
   }
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)

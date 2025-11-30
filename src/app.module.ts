@@ -14,6 +14,8 @@ import { OrderModule } from './order/order.module';
 import { AddressController } from './address/address.controller';
 import { AddressService } from './address/address.service';
 import { AddressModule } from './address/address.module';
+import { CloudflareService } from './cloudflare/cloudflare.service';
+import { CloudflareModule } from './cloudflare/cloudflare.module';
 
 @Module({
   imports: [
@@ -29,8 +31,9 @@ import { AddressModule } from './address/address.module';
     AuthModule,
     OrderModule,
     AddressModule,
+    CloudflareModule,
   ],
   controllers: [AppController, OrderController, AddressController],
-  providers: [AppService, OrderService, AddressService],
+  providers: [AppService, OrderService, AddressService, CloudflareService],
 })
 export class AppModule {}

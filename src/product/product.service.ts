@@ -10,10 +10,14 @@ import { categories, products, users } from 'src/db/schema';
 import { CreateProductDto } from './dto/createProduct.dto';
 import { UpdateProductDto } from './dto/updateProduct.dto';
 import { productCategories } from 'src/db/schema/productCategories';
+import { CloudflareService } from 'src/cloudflare/cloudflare.service';
 
 @Injectable()
 export class ProductService {
-  constructor(private readonly dbService: DrizzleService) {}
+  constructor(
+    private readonly dbService: DrizzleService,
+    private cloudflareService: CloudflareService,
+  ) {}
 
   async findOneWithProductId(id: string) {
     const product = await this.dbService.db.query.products.findFirst({
@@ -96,7 +100,11 @@ export class ProductService {
     };
   }
 
-  async createProduct(dto: CreateProductDto, user: typeof users.$inferSelect) {
+  async createProduct(
+    dto: CreateProductDto,
+    file: Express.Multer.File,
+    user: typeof users.$inferSelect,
+  ) {
     const slugExist = await this.dbService.db.query.products.findFirst({
       where: eq(products.slug, dto.slug),
     });
@@ -105,9 +113,24 @@ export class ProductService {
       throw new ConflictException('Product with this slug already exists');
     }
 
+    let image: { key: string; url: string }[] = [];
+
+    if (file) {
+      const keyBase = `products/${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const uploaded = await this.cloudflareService.uploadImage(
+        file.buffer,
+        `${keyBase}_main.webp`,
+      );
+
+      image.push({
+        key: `${keyBase}_main.webp`,
+        url: uploaded,
+      });
+    }
+
     const [product] = await this.dbService.db
       .insert(products)
-      .values({ ...dto, user_id: user.id })
+      .values({ ...dto, image_url: image[0].url, user_id: user.id })
       .returning();
 
     if (dto.category_ids?.length) {
