@@ -16,7 +16,6 @@ import { Role } from 'src/auth/enum/role.enum';
 import { AuthenticatedUser } from 'src/auth/decorators/authenticated-user.decorators';
 import { users } from 'src/db/schema';
 import { CreateProductDto } from './dto/createProduct.dto';
-import { ImageUploadValidationPipe } from 'src/cloudinary/pipes/image-validation.pipe';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UpdateProductDto } from './dto/updateProduct.dto';
 
@@ -30,11 +29,11 @@ export class ProductController {
   createProduct(
     @Body() dto: CreateProductDto,
     // @UploadedFile(new ImageUploadValidationPipe({ required: false }))
-    @UploadedFile() file: Express.Multer.File,
     // image: Express.Multer.File | null,
     @AuthenticatedUser() user: typeof users.$inferSelect,
+    @UploadedFile() file?: Express.Multer.File | null,
   ) {
-    return this.productService.createProduct(dto, file, user);
+    return this.productService.createProduct(dto, user, file);
   }
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)
@@ -43,12 +42,13 @@ export class ProductController {
   async updateProduct(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateProductDto,
-    @UploadedFile(new ImageUploadValidationPipe({ required: false }))
-    image: Express.Multer.File | null,
+    // @UploadedFile(new ImageUploadValidationPipe({ required: false }))
+    // image: Express.Multer.File | null,
     @AuthenticatedUser()
     user: typeof users.$inferSelect,
+    @UploadedFile() file?: Express.Multer.File | null,
   ) {
-    return await this.productService.updateProduct(id, dto, user);
+    return await this.productService.updateProduct(id, dto, user, file);
   }
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)

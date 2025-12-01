@@ -1,6 +1,7 @@
 import {
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -11,10 +12,12 @@ import { CreateProductDto } from './dto/createProduct.dto';
 import { UpdateProductDto } from './dto/updateProduct.dto';
 import { productCategories } from 'src/db/schema/productCategories';
 import { CloudflareService } from 'src/cloudflare/cloudflare.service';
+import { S3 } from '@aws-sdk/client-s3';
 
 @Injectable()
 export class ProductService {
   constructor(
+    @Inject('R2_CLIENT') private readonly r2Client: S3,
     private readonly dbService: DrizzleService,
     private cloudflareService: CloudflareService,
   ) {}
@@ -102,8 +105,8 @@ export class ProductService {
 
   async createProduct(
     dto: CreateProductDto,
-    file: Express.Multer.File,
     user: typeof users.$inferSelect,
+    file?: Express.Multer.File | null,
   ) {
     const slugExist = await this.dbService.db.query.products.findFirst({
       where: eq(products.slug, dto.slug),
@@ -113,7 +116,7 @@ export class ProductService {
       throw new ConflictException('Product with this slug already exists');
     }
 
-    let image: { key: string; url: string }[] = [];
+    const image: { key: string; url: string }[] = [];
 
     if (file) {
       const keyBase = `products/${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -124,13 +127,13 @@ export class ProductService {
 
       image.push({
         key: `${keyBase}_main.webp`,
-        url: uploaded,
+        url: `${process.env.R2_PUBLIC_DOMAIN}/${uploaded}`,
       });
     }
 
     const [product] = await this.dbService.db
       .insert(products)
-      .values({ ...dto, image_url: image[0].url, user_id: user.id })
+      .values({ ...dto, image_url: image[0]?.url || null, user_id: user.id })
       .returning();
 
     if (dto.category_ids?.length) {
@@ -175,6 +178,7 @@ export class ProductService {
     id: string,
     dto: UpdateProductDto,
     user: typeof users.$inferSelect,
+    file?: Express.Multer.File | null,
   ) {
     const existingProduct = await this.dbService.db.query.products.findFirst({
       where: eq(products.id, id),
@@ -203,12 +207,47 @@ export class ProductService {
     }
 
     let product = existingProduct;
+    let newImgUrl = product.image_url;
+
+    if (file) {
+      const keyBase = `products/${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      newImgUrl = await this.cloudflareService.uploadImage(
+        file.buffer,
+        `${keyBase}_main.webp`,
+      );
+      console.log(newImgUrl, 'url');
+
+      await this.dbService.db
+        .update(products)
+        .set({
+          ...dto,
+          image_url: `${process.env.R2_PUBLIC_DOMAIN}/${newImgUrl}`,
+        })
+        .where(eq(products.id, id));
+
+      const oldImgKey = product.image_url?.split('.r2.dev/')[1];
+      console.log(oldImgKey, 'old');
+
+      if (oldImgKey) {
+        try {
+          await this.r2Client.deleteObject({
+            Bucket: process.env.R2_BUCKET,
+            Key: oldImgKey,
+          });
+        } catch (error) {
+          console.log(error);
+        }
+      }
+    }
     const hasProductUpdates = Object.keys(updateData).length > 0;
 
     if (hasProductUpdates) {
       [product] = await this.dbService.db
         .update(products)
-        .set(updateData)
+        .set({
+          ...updateData,
+          image_url: `${process.env.R2_PUBLIC_DOMAIN}/${newImgUrl}`,
+        })
         .where(eq(products.id, id))
         .returning();
     }
@@ -244,7 +283,7 @@ export class ProductService {
         name: product.name,
         slug: product.slug,
         description: product.description,
-        image_url: product.image_url,
+        image_url: product.image_url || null,
         stock_quantity: product.stock_quantity,
         cost_price: product.cost_price,
         regular_price: product.regular_price,
