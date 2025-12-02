@@ -18,6 +18,7 @@ import { users } from 'src/db/schema';
 import { CreateProductDto } from './dto/createProduct.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UpdateProductDto } from './dto/updateProduct.dto';
+import { ImageUploadValidationPipe } from 'src/cloudinary/pipes/image-validation.pipe';
 
 @Controller('products')
 export class ProductController {
@@ -28,10 +29,9 @@ export class ProductController {
   @UseInterceptors(FileInterceptor('image'))
   createProduct(
     @Body() dto: CreateProductDto,
-    // @UploadedFile(new ImageUploadValidationPipe({ required: false }))
-    // image: Express.Multer.File | null,
+    @UploadedFile(new ImageUploadValidationPipe({ required: false }))
+    file: Express.Multer.File | null,
     @AuthenticatedUser() user: typeof users.$inferSelect,
-    @UploadedFile() file?: Express.Multer.File | null,
   ) {
     return this.productService.createProduct(dto, user, file);
   }
@@ -42,11 +42,10 @@ export class ProductController {
   async updateProduct(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateProductDto,
-    // @UploadedFile(new ImageUploadValidationPipe({ required: false }))
-    // image: Express.Multer.File | null,
+    @UploadedFile(new ImageUploadValidationPipe({ required: false }))
+    file: Express.Multer.File | null,
     @AuthenticatedUser()
     user: typeof users.$inferSelect,
-    @UploadedFile() file?: Express.Multer.File | null,
   ) {
     return await this.productService.updateProduct(id, dto, user, file);
   }

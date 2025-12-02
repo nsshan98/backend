@@ -19,12 +19,14 @@ export class ImageUploadValidationPipe implements PipeTransform {
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
     if (!allowedTypes.includes(file.mimetype)) {
-      throw new BadRequestException('Unsupported file type');
+      throw new BadRequestException(
+        'Unsupported file type. Only JPEG, PNG, and JPG are allowed.',
+      );
     }
 
     const maxFileSize = 5 * 1024 * 1024;
     if (file.size > maxFileSize) {
-      throw new BadRequestException('File size is too large');
+      throw new BadRequestException('File size is too large. Max size: 5MB');
     }
 
     return file;

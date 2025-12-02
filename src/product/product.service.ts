@@ -180,6 +180,7 @@ export class ProductService {
     user: typeof users.$inferSelect,
     file?: Express.Multer.File | null,
   ) {
+    // 1. Fetch and validate existing product
     const existingProduct = await this.dbService.db.query.products.findFirst({
       where: eq(products.id, id),
     });
@@ -194,79 +195,94 @@ export class ProductService {
       );
     }
 
+    // 2. Validate slug uniqueness
     const { category_ids, ...updateData } = dto;
 
     if (updateData.slug && updateData.slug !== existingProduct.slug) {
-      const slugExist = await this.dbService.db.query.products.findFirst({
+      const slugExists = await this.dbService.db.query.products.findFirst({
         where: eq(products.slug, updateData.slug),
       });
 
-      if (slugExist) {
+      if (slugExists) {
         throw new ConflictException('Product with this slug already exists');
       }
     }
 
-    let product = existingProduct;
-    let newImgUrl = product.image_url;
+    // 3. Handle image logic
+    let newImageUrl: string | null = existingProduct.image_url;
+    let oldImageKey: string | null = null;
 
-    if (file) {
+    // Extract old image key if exists
+    if (existingProduct.image_url) {
+      oldImageKey = existingProduct.image_url.split('.r2.dev/')[1];
+    }
+
+    // Determine if we should delete the old image
+    const shouldDeleteImage = dto.image === null;
+    const shouldUploadNewImage = file !== undefined && file !== null;
+
+    if (shouldDeleteImage) {
+      // User explicitly wants to remove the image
+      newImageUrl = null;
+    } else if (shouldUploadNewImage) {
+      // Upload new image
       const keyBase = `products/${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      newImgUrl = await this.cloudflareService.uploadImage(
+      const uploadedKey = await this.cloudflareService.uploadImage(
         file.buffer,
         `${keyBase}_main.webp`,
       );
-      console.log(newImgUrl, 'url');
-
-      await this.dbService.db
-        .update(products)
-        .set({
-          ...dto,
-          image_url: `${process.env.R2_PUBLIC_DOMAIN}/${newImgUrl}`,
-        })
-        .where(eq(products.id, id));
-
-      const oldImgKey = product.image_url?.split('.r2.dev/')[1];
-      console.log(oldImgKey, 'old');
-
-      if (oldImgKey) {
-        try {
-          await this.r2Client.deleteObject({
-            Bucket: process.env.R2_BUCKET,
-            Key: oldImgKey,
-          });
-        } catch (error) {
-          console.log(error);
-        }
-      }
+      newImageUrl = `${process.env.R2_PUBLIC_DOMAIN}/${uploadedKey}`;
+    } else {
+      // Keep existing image - don't delete old key
+      oldImageKey = null;
     }
-    const hasProductUpdates = Object.keys(updateData).length > 0;
 
-    if (hasProductUpdates) {
-      [product] = await this.dbService.db
+    // 4. Update product and categories in transaction
+    const updatedProduct = await this.dbService.db.transaction(async (tx) => {
+      // Update product with new data
+      const [product] = await tx
         .update(products)
         .set({
           ...updateData,
-          image_url: `${process.env.R2_PUBLIC_DOMAIN}/${newImgUrl}`,
+          image_url: newImageUrl,
+          updated_at: new Date(),
         })
         .where(eq(products.id, id))
         .returning();
-    }
 
-    if (category_ids !== undefined) {
-      await this.dbService.db
-        .delete(productCategories)
-        .where(eq(productCategories.product_id, id));
+      // Update categories if provided
+      if (category_ids !== undefined) {
+        await tx
+          .delete(productCategories)
+          .where(eq(productCategories.product_id, id));
 
-      if (category_ids.length > 0) {
-        await this.dbService.db.insert(productCategories).values(
-          category_ids.map((categoryId) => ({
-            product_id: product.id,
-            category_id: categoryId,
-          })),
-        );
+        if (category_ids.length > 0) {
+          await tx.insert(productCategories).values(
+            category_ids.map((categoryId) => ({
+              product_id: product.id,
+              category_id: categoryId,
+            })),
+          );
+        }
+      }
+
+      return product;
+    });
+
+    // 5. Delete old image from R2 after successful DB update
+    if (oldImageKey && (shouldDeleteImage || shouldUploadNewImage)) {
+      try {
+        await this.r2Client.deleteObject({
+          Bucket: process.env.R2_BUCKET,
+          Key: oldImageKey,
+        });
+      } catch (error) {
+        console.error('Failed to delete old image:', error);
+        // Don't throw - image deletion failure shouldn't break the update
       }
     }
 
+    // 6. Fetch categories for response
     const category = await this.dbService.db
       .select({
         id: categories.id,
@@ -279,18 +295,18 @@ export class ProductService {
     return {
       message: 'Product updated successfully',
       product: {
-        id: product.id,
-        name: product.name,
-        slug: product.slug,
-        description: product.description,
-        image_url: product.image_url || null,
-        stock_quantity: product.stock_quantity,
-        cost_price: product.cost_price,
-        regular_price: product.regular_price,
-        sale_price: product.sale_price,
-        is_published: product.is_published,
-        created_at: product.created_at,
-        updated_at: product.updated_at,
+        id: updatedProduct.id,
+        name: updatedProduct.name,
+        slug: updatedProduct.slug,
+        description: updatedProduct.description,
+        image_url: updatedProduct.image_url || null,
+        stock_quantity: updatedProduct.stock_quantity,
+        cost_price: updatedProduct.cost_price,
+        regular_price: updatedProduct.regular_price,
+        sale_price: updatedProduct.sale_price,
+        is_published: updatedProduct.is_published,
+        created_at: updatedProduct.created_at,
+        updated_at: updatedProduct.updated_at,
         category,
       },
     };

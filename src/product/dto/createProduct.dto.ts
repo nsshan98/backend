@@ -23,7 +23,11 @@ export class CreateProductDto {
   @IsOptional()
   description?: string;
 
+  @IsString()
   @IsOptional()
+  @Transform(({ value }) =>
+    value === 'null' ? null : (value as string | null),
+  )
   image?: string | null;
 
   @Type(() => Number)
