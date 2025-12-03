@@ -181,4 +181,8 @@ export class OrderService {
       };
     });
   }
+
+  async getAllOrders() {
+    return await this.dbService.db.select().from(orders);
+  }
 }

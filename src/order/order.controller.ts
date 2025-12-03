@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { Roles } from 'src/auth/decorators/roles.decorators';
 import { Role } from 'src/auth/enum/role.enum';
@@ -17,5 +17,11 @@ export class OrderController {
     @AuthenticatedUser() user: typeof users.$inferSelect,
   ) {
     return this.orderService.createOrder(dto, user);
+  }
+
+  @Roles(Role.SUPPA_DUPPA_ADMIN)
+  @Get('all')
+  getAllOrders() {
+    return this.orderService.getAllOrders();
   }
 }
