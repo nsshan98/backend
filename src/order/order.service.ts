@@ -7,10 +7,12 @@ import { DrizzleService } from 'src/db/db.service';
 import { CreateOrderDto } from './dto/createOrder.dto';
 import { orderItems, products, users } from 'src/db/schema';
 import { idempotency_keys } from 'src/db/schema/idempotencyKeys';
-import { inArray, sql } from 'drizzle-orm';
+import { gt, inArray, sql } from 'drizzle-orm';
 import { orders } from 'src/db/schema/order';
 import Decimal from 'decimal.js';
 import { user_addresses } from 'src/db/schema/userAddress';
+import { CursorPaginationDto } from 'src/common/dto/cursor-pagination.dto';
+import { CursorPaginator } from 'src/common/pagination/cursor-pagination';
 
 interface PreparedOrderItem {
   product: typeof products.$inferSelect;
@@ -182,7 +184,18 @@ export class OrderService {
     });
   }
 
-  async getAllOrders() {
-    return await this.dbService.db.select().from(orders);
+  async getAllOrders(query: CursorPaginationDto) {
+    const { cursor, limit = 1 } = query;
+    const where = cursor ? gt(orders.created_at, new Date(cursor)) : undefined;
+
+    console.log(where, 'where');
+
+    const items = await this.dbService.db.query.orders.findMany({
+      where,
+      limit,
+      orderBy: (orders, { asc }) => [asc(orders.created_at), asc(orders.id)],
+    });
+
+    return CursorPaginator.buildResponse(items, limit);
   }
 }

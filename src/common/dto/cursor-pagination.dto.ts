@@ -1,7 +1,7 @@
 import { Type } from 'class-transformer';
 import { IsOptional, IsString } from 'class-validator';
 
-export class ListQueryDto {
+export class CursorPaginationDto {
   @IsString()
   @IsOptional()
   search?: string;

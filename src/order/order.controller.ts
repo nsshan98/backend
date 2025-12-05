@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { Roles } from 'src/auth/decorators/roles.decorators';
 import { Role } from 'src/auth/enum/role.enum';
 import { CreateOrderDto } from './dto/createOrder.dto';
 import { AuthenticatedUser } from 'src/auth/decorators/authenticated-user.decorators';
 import { users } from 'src/db/schema';
+import { CursorPaginationDto } from 'src/common/dto/cursor-pagination.dto';
 
 @Controller('order')
 export class OrderController {
@@ -21,7 +22,7 @@ export class OrderController {
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)
   @Get('all')
-  getAllOrders() {
-    return this.orderService.getAllOrders();
+  getAllOrders(@Query() query: CursorPaginationDto) {
+    return this.orderService.getAllOrders(query);
   }
 }
