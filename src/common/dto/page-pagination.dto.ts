@@ -6,11 +6,11 @@ export class PagePaginationDto {
   @Type(() => Number)
   @IsNumber()
   @Min(1)
-  page?: number = 1;
+  page: number = 1;
 
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(1)
-  per_page?: number = 10;
+  per_page: number = 10;
 }

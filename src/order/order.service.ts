@@ -7,12 +7,15 @@ import { DrizzleService } from 'src/db/db.service';
 import { CreateOrderDto } from './dto/createOrder.dto';
 import { orderItems, products, users } from 'src/db/schema';
 import { idempotency_keys } from 'src/db/schema/idempotencyKeys';
-import { gt, inArray, sql } from 'drizzle-orm';
+import { and, count, eq, gt, inArray, SQL, sql } from 'drizzle-orm';
 import { orders } from 'src/db/schema/order';
 import Decimal from 'decimal.js';
 import { user_addresses } from 'src/db/schema/userAddress';
 import { CursorPaginationDto } from 'src/common/dto/cursor-pagination.dto';
 import { CursorPaginator } from 'src/common/pagination/cursor-pagination';
+import { PagePaginationDto } from 'src/common/dto/page-pagination.dto';
+import { PagePaginator } from 'src/common/pagination/page-pagination';
+import { Role } from 'src/auth/enum/role.enum';
 
 interface PreparedOrderItem {
   product: typeof products.$inferSelect;
@@ -184,18 +187,60 @@ export class OrderService {
     });
   }
 
-  async getAllOrders(query: CursorPaginationDto) {
+  async getAllOrdersByUser(
+    query: CursorPaginationDto,
+    user: typeof users.$inferSelect,
+  ) {
     const { cursor, limit = 1 } = query;
-    const where = cursor ? gt(orders.created_at, new Date(cursor)) : undefined;
 
-    console.log(where, 'where');
+    let where: SQL | undefined = undefined;
+
+    if (user.role === Role.SUPPA_DUPPA_ADMIN) {
+      where = undefined;
+    }
+
+    if (user.role === Role.USER) {
+      where = eq(orders.user_id, user.id);
+    }
+
+    const cursorCondition = cursor
+      ? gt(orders.created_at, new Date(cursor))
+      : undefined;
+    const finalWhere = cursorCondition ? and(where, cursorCondition) : where;
 
     const items = await this.dbService.db.query.orders.findMany({
-      where,
+      where: finalWhere,
       limit,
       orderBy: (orders, { asc }) => [asc(orders.created_at), asc(orders.id)],
     });
 
     return CursorPaginator.buildResponse(items, limit);
+  }
+
+  async getOrders(query: PagePaginationDto) {
+    const { page, per_page } = query;
+
+    const offset = (page - 1) * per_page;
+
+    const items = await this.dbService.db.query.orders.findMany({
+      limit: per_page,
+      offset,
+      orderBy: (orders, { desc }) => [desc(orders.created_at)],
+    });
+
+    const totalResult = await this.dbService.db
+      .select({
+        count: count(),
+      })
+      .from(orders);
+
+    const total = totalResult[0].count;
+
+    return PagePaginator.buildResponse({
+      items,
+      total,
+      page,
+      perPage: per_page,
+    });
   }
 }
