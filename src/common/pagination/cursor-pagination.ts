@@ -3,6 +3,7 @@ export interface EntityWithId {
 }
 
 export interface CursorPage<T> {
+  total: number;
   data: T[];
   nextCursor: string | null;
 }
@@ -13,12 +14,13 @@ export class CursorPaginator {
     limit: number,
   ): CursorPage<T> {
     if (items.length === 0) {
-      return { data: [], nextCursor: null };
+      return { total: 0, data: [], nextCursor: null };
     }
 
     const lastItem = items[items.length - 1];
 
     return {
+      total: items.length,
       data: items,
       nextCursor: lastItem.created_at?.toISOString() || null,
     };
