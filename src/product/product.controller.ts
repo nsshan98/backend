@@ -62,19 +62,25 @@ export class ProductController {
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)
   @Get('all-products')
-  async getAllProducts() {
-    return this.productService.getAllProducts();
+  async getAllProducts(@AuthenticatedUser() user: typeof users.$inferSelect) {
+    return this.productService.getAllProducts(user);
   }
 
   @Roles(Role.SUPPA_DUPPA_ADMIN)
   @Get('by-id/:id')
-  async findOneWithProductId(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.productService.findOneWithProductId(id);
+  async findOneWithProductId(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @AuthenticatedUser() user: typeof users.$inferSelect,
+  ) {
+    return this.productService.findOneWithProductId(id, user);
   }
 
   @Roles(Role.SUPPA_DUPPA_ADMIN, Role.USER)
   @Get('by-slug/:slug')
-  async findOneWithProductSlug(@Param('slug') slug: string) {
-    return this.productService.findOneWithProductSlug(slug);
+  async findOneWithProductSlug(
+    @Param('slug') slug: string,
+    @AuthenticatedUser() user: typeof users.$inferSelect,
+  ) {
+    return this.productService.findOneWithProductSlug(slug, user);
   }
 }

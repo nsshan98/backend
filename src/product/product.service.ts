@@ -13,6 +13,7 @@ import { UpdateProductDto } from './dto/updateProduct.dto';
 import { productCategories } from 'src/db/schema/productCategories';
 import { CloudflareService } from 'src/cloudflare/cloudflare.service';
 import { S3 } from '@aws-sdk/client-s3';
+import { AuthenticatedUser } from 'src/auth/decorators/authenticated-user.decorators';
 
 @Injectable()
 export class ProductService {
@@ -22,12 +23,18 @@ export class ProductService {
     private cloudflareService: CloudflareService,
   ) {}
 
-  async findOneWithProductId(id: string) {
+  async findOneWithProductId(id: string, user: typeof users.$inferSelect) {
     const product = await this.dbService.db.query.products.findFirst({
       where: eq(products.id, id),
     });
     if (!product) {
       throw new NotFoundException('Product not found');
+    }
+
+    if (product.user_id !== user.id) {
+      throw new ForbiddenException(
+        'You are not authorized to access this product',
+      );
     }
 
     const categoryWithProduct = await this.dbService.db
@@ -63,12 +70,18 @@ export class ProductService {
     };
   }
 
-  async findOneWithProductSlug(slug: string) {
+  async findOneWithProductSlug(slug: string, user: typeof users.$inferSelect) {
     const product = await this.dbService.db.query.products.findFirst({
       where: eq(products.slug, slug),
     });
     if (!product) {
       throw new NotFoundException('Product not found');
+    }
+
+    if (product.user_id !== user.id) {
+      throw new ForbiddenException(
+        'You are not authorized to access this product',
+      );
     }
     const categoryWithProduct = await this.dbService.db
       .select({
@@ -333,10 +346,11 @@ export class ProductService {
     };
   }
 
-  async getAllProducts() {
+  async getAllProducts(@AuthenticatedUser() user: typeof users.$inferSelect) {
     return await this.dbService.db
       .select()
       .from(products)
+      .where(eq(products.user_id, user.id))
       .orderBy(desc(products.created_at));
   }
 }
